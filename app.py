@@ -207,13 +207,13 @@ def show_patient_extras(page):
 
 def show_ai_assistant():
     st.markdown(
-        section_heading("◉", "AI Health Assistant", "Locally generated answers to general heart-health questions"),
+        section_heading("◉", "AI Health Assistant", "Groq-powered answers to general heart-health questions"),
         unsafe_allow_html=True,
     )
     st.info(
-        "This assistant uses Ollama running on this computer. Your message, recent "
-        "chat, and latest saved assessment are sent to that local model only. "
-        "It cannot diagnose or recommend treatment."
+        "This assistant uses Groq's cloud API. Your message, recent chat, and "
+        "latest saved assessment are sent to Groq. Do not share information you "
+        "do not want sent to a cloud service. It cannot diagnose or recommend treatment."
     )
 
     chat_key = f"chat_messages_{st.session_state.username}"
@@ -250,7 +250,7 @@ def show_ai_assistant():
         with st.chat_message("user"):
             st.write(prompt)
         try:
-            with st.spinner("Generating a response with the local model..."):
+            with st.spinner("Generating a response with Groq..."):
                 response = get_ai_response(prompt, messages[:-1], latest_record)
         except RuntimeError as exc:
             st.error(str(exc))

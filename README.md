@@ -5,13 +5,13 @@ CardioVue AI is a patient-focused academic prototype for cardiovascular risk ass
 - Patient account sign-in and registration
 - A cardiovascular risk assessment form with model prediction
 - A patient dashboard and assessment history
-- A locally hosted AI chatbot for general heart-health information
+- A Groq-powered AI chatbot for general heart-health information
 - SQLite persistence for accounts and assessment records
 - A feature-contribution visualization for model explanations
 
 The application is for educational demonstration only. It is not a medical device and does not provide a diagnosis or treatment recommendation.
 
-The sidebar also has static UI previews for additional patient features and doctor/researcher workspaces. These preview screens do not calculate results, contact services, or save data. The AI assistant uses a locally running Ollama model; prompts, recent chat, and the latest saved assessment are sent to that local service and are not sent to a cloud AI provider by this app. The assistant is not a diagnostic tool and does not replace professional medical advice.
+The sidebar also has static UI previews for additional patient features and doctor/researcher workspaces. These preview screens do not calculate results, contact services, or save data. The AI assistant uses Groq's cloud API. Prompts, recent chat, and the latest saved assessment are sent to Groq to generate a response. Do not share information you do not want sent to a cloud service. The assistant is not a diagnostic tool and does not replace professional medical advice.
 
 ## Run the application
 
@@ -22,13 +22,13 @@ The sidebar also has static UI previews for additional patient features and doct
    pip install -r requirements.txt
    ```
 
-3. Install Ollama from [ollama.com/download](https://ollama.com/download) and download the default model:
+3. Create a Groq API key from [GroqCloud](https://console.groq.com/keys), then set it in PowerShell before starting the app:
 
    ```powershell
-   ollama pull llama3.2
+   $env:GROQ_API_KEY = "your-groq-api-key"
    ```
 
-   Keep Ollama running while using the chatbot. To use another model already installed in Ollama, set `CARDIOVUE_OLLAMA_MODEL` to its model name before starting the app.
+   The default model is `openai/gpt-oss-20b`. To use another model available to your Groq account, set `CARDIOVUE_GROQ_MODEL` before starting the app.
 
 4. Start Streamlit from the project directory:
 
@@ -43,7 +43,7 @@ The app stores persistent data in `cardiovue.db` in the current working director
 
 Risk predictions use a trained model from the configured `models` folder when available; otherwise the engine uses its built-in fallback simulator. Confirm the active model shown in the assessment output before interpreting a result.
 
-The AI assistant requires Ollama at `http://127.0.0.1:11434`. If Ollama or the selected model is unavailable, the app displays an error rather than silently switching to scripted responses.
+The AI assistant requires an internet connection and a valid `GROQ_API_KEY`. If Groq or the selected model is unavailable, the app displays an error rather than silently switching to scripted responses.
 
 ## Model training
 
