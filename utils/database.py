@@ -3,6 +3,7 @@
 import hashlib
 import json
 import os
+import re
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
@@ -32,7 +33,7 @@ def init_db():
             CREATE TABLE IF NOT EXISTS users (
                 username TEXT PRIMARY KEY,
                 password_hash TEXT NOT NULL,
-                role TEXT NOT NULL CHECK(role = 'patient'),
+                role TEXT NOT NULL CHECK(role IN ('patient', 'doctor', 'researcher')),
                 name TEXT NOT NULL,
                 email TEXT NOT NULL,
                 extra_json TEXT DEFAULT '{}',
@@ -66,7 +67,39 @@ def init_db():
             );
             """
         )
+        _migrate_user_roles(conn)
     _seed_demo_patient()
+
+
+def _migrate_user_roles(conn):
+    row = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'users'"
+    ).fetchone()
+    if row is None or not re.search(
+        r"CHECK\s*\(\s*role\s*=\s*'patient'\s*\)", row["sql"], re.IGNORECASE
+    ):
+        return
+
+    conn.executescript(
+        """
+        CREATE TABLE users_new (
+            username TEXT PRIMARY KEY,
+            password_hash TEXT NOT NULL,
+            role TEXT NOT NULL CHECK(role IN ('patient', 'doctor', 'researcher')),
+            name TEXT NOT NULL,
+            email TEXT NOT NULL,
+            extra_json TEXT DEFAULT '{}',
+            joined TEXT NOT NULL,
+            family_history INTEGER DEFAULT 0
+        );
+        INSERT INTO users_new
+            (username, password_hash, role, name, email, extra_json, joined, family_history)
+        SELECT username, password_hash, role, name, email, extra_json, joined, family_history
+        FROM users;
+        DROP TABLE users;
+        ALTER TABLE users_new RENAME TO users;
+        """
+    )
 
 
 def _hash(password):
@@ -108,22 +141,29 @@ def get_user(username):
 
 def authenticate(username, password):
     user = get_user(username)
-    if user and user.get("role") == "patient" and user.get("password_hash") == _hash(password):
+    if (
+        user
+        and user.get("role") in {"patient", "doctor", "researcher"}
+        and user.get("password_hash") == _hash(password)
+    ):
         return user
     return None
 
 
-def register_user(username, password, name, email, extra=None):
-    """Create a patient account."""
+def register_user(username, password, name, email, extra=None, role="patient"):
+    """Create a patient, doctor, or researcher account."""
+    if role not in {"patient", "doctor", "researcher"}:
+        raise ValueError("Role must be patient, doctor, or researcher.")
     try:
         with get_conn() as conn:
             conn.execute(
                 """INSERT INTO users
                    (username, password_hash, role, name, email, extra_json, joined)
-                   VALUES (?, ?, 'patient', ?, ?, ?, ?)""",
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
                 (
                     username,
                     _hash(password),
+                    role,
                     name,
                     email,
                     json.dumps(extra or {}),

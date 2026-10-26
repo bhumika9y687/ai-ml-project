@@ -1,17 +1,18 @@
 # CardioVue AI
 
-CardioVue AI is a patient-focused academic prototype for cardiovascular risk assessment. This milestone build includes:
+CardioVue AI is an academic prototype for cardiovascular risk assessment. This milestone build includes:
 
-- Patient account sign-in and registration
+- Patient, doctor, and researcher account sign-in and registration
 - A cardiovascular risk assessment form with model prediction
 - A patient dashboard and assessment history
+- Role-specific doctor and researcher workspace previews
 - A Groq-powered AI chatbot for general heart-health information
 - SQLite persistence for accounts and assessment records
 - A feature-contribution visualization for model explanations
 
 The application is for educational demonstration only. It is not a medical device and does not provide a diagnosis or treatment recommendation.
 
-The sidebar also has static UI previews for additional patient features and doctor/researcher workspaces. These preview screens do not calculate results, contact services, or save data. The AI assistant uses Groq's cloud API. Prompts, recent chat, and the latest saved assessment are sent to Groq to generate a response. Do not share information you do not want sent to a cloud service. The assistant is not a diagnostic tool and does not replace professional medical advice.
+Doctor and researcher accounts are stored for sign-in, but their workspaces are static frontend previews only; they do not connect to patient records, research services, or backend workflows. Additional patient feature previews also do not calculate results or save data. The AI assistant uses Groq's cloud API. Prompts, recent chat, and the latest saved assessment are sent to Groq to generate a response. Do not share information you do not want sent to a cloud service. The assistant is not a diagnostic tool and does not replace professional medical advice.
 
 ## Run the application
 

@@ -1,4 +1,4 @@
-"""CardioVue AI patient cardiovascular risk assessment."""
+"""CardioVue AI cardiovascular health assessment and workspace previews."""
 
 from datetime import datetime
 import math
@@ -30,34 +30,47 @@ init_db()
 
 
 def show_login():
-    st.markdown(section_heading("🫀", "CardioVue AI", "Patient cardiovascular risk assessment"), unsafe_allow_html=True)
+    st.markdown(section_heading("🫀", "CardioVue AI", "Patient care and research workspaces"), unsafe_allow_html=True)
     st.info("This academic project is for demonstration and is not a medical diagnosis.")
 
-    sign_in, create_account = st.tabs(["Sign In", "Create Patient Account"])
+    sign_in, create_account = st.tabs(["Sign In", "Create Account"])
     with sign_in:
-        with st.form("patient_login"):
+        with st.form("account_login"):
             username = st.text_input("Username")
             password = st.text_input("Password", type="password")
             submitted = st.form_submit_button("Sign in", type="primary")
         if submitted:
             user = authenticate(username.strip(), password)
-            if user and user.get("role") == "patient":
+            if user:
                 st.session_state.update(
                     logged_in=True,
                     username=user["username"],
                     user=user,
-                    page="dashboard",
+                    page={
+                        "patient": "dashboard",
+                        "doctor": "doctor_dashboard_preview",
+                        "researcher": "research_dashboard_preview",
+                    }[user["role"]],
                     last_prediction=None,
                 )
                 st.rerun()
-            st.error("Invalid credentials or this account is not a patient account.")
+            st.error("Invalid username or password.")
 
     with create_account:
-        with st.form("patient_registration"):
+        role = st.selectbox(
+            "Account type",
+            ["Patient", "Doctor", "Researcher"],
+            key="registration_role",
+        ).lower()
+        with st.form("account_registration"):
             username = st.text_input("Username")
             name = st.text_input("Full name")
             email = st.text_input("Email")
-            age = st.number_input("Age", min_value=18, max_value=100, value=35)
+            age = (
+                st.number_input("Age", min_value=18, max_value=100, value=35)
+                if role == "patient"
+                else None
+            )
             password = st.text_input("Password", type="password")
             submitted = st.form_submit_button("Create account", type="primary")
         if submitted:
@@ -71,22 +84,30 @@ def show_login():
                     password,
                     name.strip(),
                     email.strip(),
-                    {"age": int(age)},
+                    {"age": int(age)} if age is not None else {},
+                    role=role,
                 )
-                (st.success if ok else st.error)(message)
+                if ok:
+                    user = authenticate(username.strip(), password)
+                    st.session_state.update(
+                        logged_in=True,
+                        username=user["username"],
+                        user=user,
+                        page={
+                            "patient": "dashboard",
+                            "doctor": "doctor_dashboard_preview",
+                            "researcher": "research_dashboard_preview",
+                        }[user["role"]],
+                        last_prediction=None,
+                    )
+                    st.rerun()
+                st.error(message)
 
 
 def show_sidebar():
     st.sidebar.markdown("## 🫀 CardioVue AI")
-    st.sidebar.caption(f"Signed in as patient: {st.session_state.user['name']}")
-    preview_role = st.sidebar.selectbox(
-        "Preview interface",
-        ["Patient", "Doctor", "Researcher"],
-        index=["patient", "doctor", "researcher"].index(st.session_state.get("preview_role", "patient")),
-        key="preview_role_select",
-        help="Doctor and researcher areas are static UI previews only.",
-    ).lower()
-    st.session_state.preview_role = preview_role
+    role = st.session_state.user["role"]
+    st.sidebar.caption(f"Signed in as {role}: {st.session_state.user['name']}")
 
     nav_by_role = {
         "patient": {
@@ -122,7 +143,7 @@ def show_sidebar():
             "collaboration_preview": "Collaboration",
         },
     }
-    pages = nav_by_role[preview_role]
+    pages = nav_by_role[role]
     if st.session_state.page not in pages:
         st.session_state.page = next(iter(pages))
     for page, label in pages.items():
@@ -135,7 +156,7 @@ def show_sidebar():
             st.session_state.page = page
             st.rerun()
     if st.sidebar.button("Sign out", use_container_width=True):
-        for key in ("logged_in", "username", "user", "page", "last_prediction", "preview_role"):
+        for key in ("logged_in", "username", "user", "page", "last_prediction"):
             st.session_state.pop(key, None)
         st.rerun()
 
@@ -535,8 +556,8 @@ def main():
 
     st.session_state.setdefault("page", "dashboard")
     show_sidebar()
-    preview_role = st.session_state.get("preview_role", "patient")
-    if preview_role == "patient":
+    role = st.session_state.user["role"]
+    if role == "patient":
         pages = {
             "dashboard": show_dashboard,
             "risk_assessment": show_risk_assessment,
@@ -551,7 +572,7 @@ def main():
             "ecg_preview": show_ecg_preview,
         }
         fallback = show_dashboard
-    else:
+    elif role in {"doctor", "researcher"}:
         pages = {
             "doctor_dashboard_preview": show_role_preview,
             "doctor_patients_preview": show_role_preview,
@@ -570,6 +591,9 @@ def main():
             "collaboration_preview": show_role_preview,
         }
         fallback = show_role_preview
+    else:
+        st.error("This account has an unsupported role. Please sign in again.")
+        return
 
     handler = pages.get(st.session_state.page, fallback)
     if handler == show_role_preview:
