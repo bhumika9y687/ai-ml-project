@@ -6,11 +6,10 @@ import numpy as np
 import warnings
 warnings.filterwarnings('ignore')
 
-# Visualization
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
-import matplotlib
-matplotlib.use('TkAgg')
 plt.style.use('seaborn-v0_8-darkgrid')
 plt.rcParams['figure.figsize'] = (12, 8)
 plt.rcParams['font.size'] = 12
@@ -27,7 +26,6 @@ from sklearn.neural_network import MLPClassifier
 
 # Advanced Models
 from xgboost import XGBClassifier
-from lightgbm import LGBMClassifier
 from catboost import CatBoostClassifier
 
 # Handling Imbalanced Data
@@ -743,37 +741,6 @@ def build_all_models(X_train, X_val, X_test, y_train, y_val, y_test, scaler):
     except Exception as e:
         print(f"❌ Error: {e}")
     
-    # ========== 3. LIGHTGBM ==========
-    print("\n" + "="*60)
-    print("💡 3. LIGHTGBM")
-    print("="*60)
-    
-    try:
-        lgb_model = LGBMClassifier(
-            random_state=RANDOM_STATE,
-            n_estimators=300,
-            max_depth=-1,
-            learning_rate=0.05,
-            num_leaves=31,
-            min_child_samples=20,
-            subsample=0.8,
-            colsample_bytree=0.8,
-            reg_alpha=0.1,
-            reg_lambda=0.1,
-            class_weight='balanced',
-            n_jobs=-1,
-            verbose=-1
-        )
-        
-        lgb_model.fit(X_train, y_train, eval_set=[(X_val, y_val)], verbose=False)
-        print("✅ Trained")
-        
-        lgb_metrics = evaluate_model(lgb_model, "LightGBM", X_train, X_val, X_test, y_train, y_val, y_test)
-        models['LightGBM'] = lgb_model
-        results['LightGBM'] = lgb_metrics
-    except Exception as e:
-        print(f"❌ Error: {e}")
-    
     # ========== 4. CATBOOST ==========
     print("\n" + "="*60)
     print("🐱 4. CATBOOST")
@@ -832,6 +799,33 @@ def build_all_models(X_train, X_val, X_test, y_train, y_val, y_test, scaler):
     except Exception as e:
         print(f"❌ Error: {e}")
     
+    # ========== 6. STACKING ENSEMBLE ==========
+    print("\n" + "="*60)
+    print("🧩 6. STACKING ENSEMBLE")
+    print("="*60)
+
+    try:
+        base_estimators = [("random_forest", models["Extreme_Random_Forest"]),
+                           ("xgboost", models["XGBoost"]),
+                           ("catboost", models["CatBoost"]),
+                           ("neural_network", models["Neural_Network"])]
+        stacking_model = StackingClassifier(
+            estimators=base_estimators,
+            final_estimator=LogisticRegression(max_iter=1000, class_weight="balanced", random_state=RANDOM_STATE),
+            cv=5,
+            n_jobs=-1,
+            passthrough=False,
+        )
+        stacking_model.fit(X_train, y_train)
+        print("✅ Trained")
+
+        stacking_metrics = evaluate_model(stacking_model, "Stacking_Ensemble", X_train, X_val, X_test, y_train, y_val, y_test)
+        models["Stacking_Ensemble"] = stacking_model
+        results["Stacking_Ensemble"] = stacking_metrics
+    except KeyError as e:
+        print(f"❌ Stacking Ensemble skipped; base model unavailable: {e}")
+    except Exception as e:
+        print(f"❌ Error: {e}")
     return models, results
 
 # ====================

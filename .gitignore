@@ -26,6 +26,3 @@ catboost_info/
 # Large model files
 *.pkl
 *.joblib
-
-# Local database may contain user and assessment data
-cardiovue.db

@@ -1,5 +1,5 @@
 """
-CardioVue AI v2.0 — Enhanced Professional Medical SaaS Theme
+Cardio Vue AI v2.0 — Enhanced Professional Medical SaaS Theme
 ────────────────────────────────────────────────────────────
 Upgrades over v1:
 • Syne display font for hero headings (bolder, more distinctive)
@@ -221,6 +221,12 @@ html, body, [class*="css"] {
 .badge-indigo { background: rgba(99,102,241,0.12);            color: #a5b4fc; }
 .badge-orange { background: rgba(249,115,22,0.12);            color: #fdba74; }
 
+/* ── Role badges ──────────────────────────────── */
+.role-badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; }
+.role-patient    { background: rgba(56,189,248,0.10);  color: #7dd3fc; }
+.role-doctor     { background: rgba(20,184,166,0.10);  color: var(--teal-lt); }
+.role-researcher { background: rgba(245,158,11,0.10);  color: #fde68a; }
+
 /* ── Chat bubbles ─────────────────────────────── */
 .bubble-user { display:flex; justify-content:flex-end; margin:0.35rem 0; }
 .bubble-user > div {
@@ -394,9 +400,10 @@ hr.divider { border:none; border-top:1px solid var(--b1); margin:1rem 0; }
 .res-stat-num { font-family: 'Syne', sans-serif; font-size:1.65rem; font-weight:800; color:var(--teal-lt); line-height:1.1; letter-spacing:-0.025em; }
 .res-stat-lbl { font-size:0.7rem; color:var(--t3); margin-top:3px; font-weight:600; text-transform:uppercase; letter-spacing:0.07em; }
 
-/* ── Hide nonessential Streamlit chrome ───────── */
+/* ── Hide streamlit chrome ────────────────────── */
 #MainMenu { visibility:hidden; }
 footer    { visibility:hidden; }
+header    { visibility:hidden; }
 
 /* ── Animations ───────────────────────────────── */
 @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
