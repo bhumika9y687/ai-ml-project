@@ -1,4 +1,4 @@
-"""Local Ollama-backed health assistant."""
+"""Groq-backed health assistant."""
 
 import json
 import os
@@ -6,10 +6,10 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 
-OLLAMA_URL = "http://127.0.0.1:11434/api/chat"
-DEFAULT_MODEL = "llama3.2"
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+DEFAULT_MODEL = "openai/gpt-oss-20b"
 
-SYSTEM_PROMPT = """You are CardioVue AI, a local assistant that provides general,
+SYSTEM_PROMPT = """You are CardioVue AI, an assistant that provides general,
 educational cardiovascular-health information.
 
 Safety rules:
@@ -79,7 +79,7 @@ def get_ai_response(
     latest_record: dict | None = None,
     model: str | None = None,
 ) -> str:
-    """Generate a response with the local Ollama server; never use a cloud fallback."""
+    """Generate a response using Groq; never use a scripted fallback."""
     if _is_emergency(message):
         return (
             "If you or someone nearby may be having a medical emergency, contact "
@@ -88,7 +88,14 @@ def get_ai_response(
             "or provide emergency care."
         )
 
-    model_name = model or os.environ.get("CARDIOVUE_OLLAMA_MODEL", DEFAULT_MODEL)
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        raise RuntimeError(
+            "Groq API key is missing. Set the GROQ_API_KEY environment variable "
+            "before starting the app."
+        )
+
+    model_name = model or os.environ.get("CARDIOVUE_GROQ_MODEL", DEFAULT_MODEL)
     messages = [
         {
             "role": "system",
@@ -103,32 +110,62 @@ def get_ai_response(
     messages.append({"role": "user", "content": message})
 
     request = Request(
-        OLLAMA_URL,
+        GROQ_URL,
         data=json.dumps(
-            {"model": model_name, "messages": messages, "stream": False}
+            {"model": model_name, "messages": messages}
         ).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Authorization": "Bearer " + api_key,
+            "Content-Type": "application/json",
+            "User-Agent": "CardioVue-Health-Assistant/1.0",
+        },
         method="POST",
     )
     try:
         with urlopen(request, timeout=120) as response:
             result = json.loads(response.read().decode("utf-8"))
     except HTTPError as exc:
+        error_body = exc.read().decode("utf-8", errors="replace").strip()
+        try:
+            error_payload = json.loads(error_body)
+        except json.JSONDecodeError:
+            error_payload = None
+        error = error_payload.get("error") if isinstance(error_payload, dict) else None
+        detail = error.get("message") if isinstance(error, dict) else None
+        if not isinstance(detail, str) or not detail:
+            detail = error_body
+        if isinstance(detail, str) and detail:
+            detail = detail.replace(api_key, "[redacted]")[:400]
+        suffix = f" {detail}" if detail else ""
+        if exc.code == 401:
+            raise RuntimeError(
+                f"Groq rejected the API key. Check the GROQ_API_KEY value.{suffix}"
+            ) from exc
         if exc.code == 404:
             raise RuntimeError(
-                f"Ollama could not find model '{model_name}'. Pull it with "
-                f"`ollama pull {model_name}`."
+                f"Groq could not find model '{model_name}'. Check "
+                f"CARDIOVUE_GROQ_MODEL and the available Groq models.{suffix}"
             ) from exc
-        raise RuntimeError(f"Ollama returned HTTP {exc.code}.") from exc
+        raise RuntimeError(f"Groq returned HTTP {exc.code}.{suffix}") from exc
     except URLError as exc:
         raise RuntimeError(
-            "Could not connect to Ollama at 127.0.0.1:11434. Start Ollama and "
-            f"make sure the '{model_name}' model is installed."
+            "Could not connect to Groq. Check your internet connection and try "
+            "again."
         ) from exc
     except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-        raise RuntimeError("Ollama returned an invalid response.") from exc
+        raise RuntimeError("Groq returned an invalid response.") from exc
 
-    content = result.get("message", {}).get("content")
+    if not isinstance(result, dict):
+        raise RuntimeError("Groq returned an invalid response.")
+    choices = result.get("choices")
+    if (
+        not isinstance(choices, list)
+        or not choices
+        or not isinstance(choices[0], dict)
+        or not isinstance(choices[0].get("message"), dict)
+    ):
+        raise RuntimeError("Groq returned an invalid response.")
+    content = choices[0]["message"].get("content")
     if not isinstance(content, str) or not content.strip():
-        raise RuntimeError("Ollama returned an empty assistant response.")
+        raise RuntimeError("Groq returned an empty assistant response.")
     return content.strip()
